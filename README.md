@@ -1,4 +1,9 @@
-# Music Practice Lab
+<div align="center">
+	<a href="https://github.com/wormcracker/music-practice-lab">
+		<img src="./public/MusicPracticeLab.png" width="256" style="border-radius:28px" alt="music-practice-lab">
+	</a>
+	<h3 align="center">Music Practice Lab</h3>
+</div>
 
 **Music Practice Lab** is a modular, modern web app for musicians to supercharge their practice sessions. It provides a customizable workspace with interactive widgets—metronome, tuner, drone, timer, looper, and more—all in a beautiful, responsive interface.
 
