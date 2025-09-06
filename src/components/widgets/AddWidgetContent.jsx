@@ -171,7 +171,7 @@ const AddWidgetContent = ({ onClose, setWidgets, widgets = [] }) => {
   }, [onClose]);
   return (
     <Modal onClose={onClose} isOpen={true} size="lg">
-      <div className="max-w-4xl mx-auto z-50">
+      <div className="max-w-4xl mx-auto z-[9999]">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
