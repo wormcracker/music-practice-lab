@@ -31,7 +31,7 @@ Thanks!`,
     );
 
     // Replace with your actual email address
-    const mailtoLink = `mailto:wormcrackerz.com?subject=${subject}&body=${body}`;
+    const mailtoLink = `mailto:wormcrackerz@gmail.com?subject=${subject}&body=${body}`;
 
     // Open default mail app
     window.open(mailtoLink);
