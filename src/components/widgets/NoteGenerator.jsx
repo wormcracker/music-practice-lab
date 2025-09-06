@@ -35,7 +35,10 @@ const SEPARATE_NOTES = [
   "B",
 ];
 
-const NoteGenerator = ({ useCombined: useCombinedProp, onUpdateWidgetProps }) => {
+const NoteGenerator = ({
+  useCombined: useCombinedProp,
+  onUpdateWidgetProps,
+}) => {
   const [useCombined, setUseCombined] = useState(useCombinedProp ?? true);
   const [availableNotes, setAvailableNotes] = useState(
     useCombined ? [...COMBINED_NOTES] : [...SEPARATE_NOTES],
@@ -70,25 +73,21 @@ const NoteGenerator = ({ useCombined: useCombinedProp, onUpdateWidgetProps }) =>
   };
 
   // keyboard shortcut: 'n' for next note
-React.useEffect(() => {
-  const onKey = (e) => {
-    const tag = document.activeElement?.tagName?.toLowerCase();
-    const isEditable = document.activeElement?.isContentEditable;
-    if (
-      tag === "input" ||
-      tag === "textarea" ||
-      isEditable
-    ) {
-      return;
-    }
-    if (e.key && e.key.toLowerCase() === "n") {
-      e.preventDefault();
-      generateNote();
-    }
-  };
-  window.addEventListener("keydown", onKey);
-  return () => window.removeEventListener("keydown", onKey);
-}, [availableNotes, useCombined]);
+  React.useEffect(() => {
+    const onKey = (e) => {
+      const tag = document.activeElement?.tagName?.toLowerCase();
+      const isEditable = document.activeElement?.isContentEditable;
+      if (tag === "input" || tag === "textarea" || isEditable) {
+        return;
+      }
+      if (e.key && e.key.toLowerCase() === "n") {
+        e.preventDefault();
+        generateNote();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [availableNotes, useCombined]);
 
   // persist mode
   React.useEffect(() => {
@@ -110,7 +109,10 @@ React.useEffect(() => {
           className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition"
           onClick={generateNote}
         >
-          Next Note (use: n)
+          Next Note{" "}
+          <span className="hidden lg:inline text-xs bg-blue-500 px-2 py-1 rounded">
+            n
+          </span>
         </button>
 
         <button
