@@ -36,6 +36,33 @@ const Recording = ({ onUpdateWidgetProps }) => {
     [],
   );
 
+  // keyboard shortcut: 'r' toggling record
+  React.useEffect(() => {
+    const onKey = (e) => {
+      const tag = document.activeElement?.tagName?.toLowerCase();
+      const isEditable = document.activeElement?.isContentEditable;
+      if (tag === "input" || tag === "textarea" || isEditable) {
+        return;
+      }
+      if (
+        e.key &&
+        e.key.toLowerCase() === "r" &&
+        !e.ctrlKey &&
+        !e.metaKey &&
+        !e.altKey
+      ) {
+        e.preventDefault();
+        if (!isRecording) {
+          startRecording();
+        } else {
+          stopRecording();
+        }
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
   // Start recording
   const startRecording = async () => {
     try {
@@ -267,7 +294,10 @@ const Recording = ({ onUpdateWidgetProps }) => {
             className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
           >
             <Mic className="w-4 h-4" />
-            Start Recording
+            Start Recording{" "}
+            <span className="hidden lg:inline text-xs bg-red-400 px-2 py-1 rounded">
+              r
+            </span>
           </button>
         ) : (
           <button
@@ -276,6 +306,9 @@ const Recording = ({ onUpdateWidgetProps }) => {
           >
             <Square className="w-4 h-4" />
             Stop Recording
+            <span className="hidden lg:inline text-xs bg-gray-400 px-2 py-1 rounded">
+              r
+            </span>
           </button>
         )}
       </div>
@@ -345,3 +378,4 @@ const Recording = ({ onUpdateWidgetProps }) => {
 };
 
 export default Recording;
+

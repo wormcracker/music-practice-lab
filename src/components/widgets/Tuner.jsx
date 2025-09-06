@@ -230,6 +230,33 @@ const Tuner = ({ showVisualizer = false, onUpdateWidgetProps }) => {
     // eslint-disable-next-line
   }, []);
 
+  // keyboard shortcut: 't' toggling tuner
+  React.useEffect(() => {
+    const onKey = (e) => {
+      const tag = document.activeElement?.tagName?.toLowerCase();
+      const isEditable = document.activeElement?.isContentEditable;
+      if (tag === "input" || tag === "textarea" || isEditable) {
+        return;
+      }
+      if (
+        e.key &&
+        e.key.toLowerCase() === "t" &&
+        !e.ctrlKey &&
+        !e.metaKey &&
+        !e.altKey
+      ) {
+        e.preventDefault();
+        if (isListening) {
+          stopMic();
+        } else {
+          startMic();
+        }
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
   return (
     <div className="max-w-sm p-6 rounded-xl shadow-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 flex flex-col gap-4">
       <h2 className="text-2xl font-semibold flex items-center gap-2 mb-2">
@@ -246,6 +273,11 @@ const Tuner = ({ showVisualizer = false, onUpdateWidgetProps }) => {
         >
           {isListening ? <MicOff /> : <Mic />}
           {isListening ? "Stop" : "Use Microphone"}
+          <span
+            className={`hidden lg:inline text-xs bg-green-500 px-2 py-1 rounded ${isListening ? "bg-red-400" : "bg-green-400"}`}
+          >
+            t
+          </span>
         </button>
         <span className="text-xs text-gray-500">
           {isListening ? "Listening..." : ""}
@@ -331,4 +363,3 @@ const Tuner = ({ showVisualizer = false, onUpdateWidgetProps }) => {
 };
 
 export default Tuner;
-

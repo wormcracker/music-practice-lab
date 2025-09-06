@@ -301,14 +301,20 @@ const Metronome = ({
             className="text-white flex-1 mx-2 py-3 rounded-lg bg-sky-600 hover:bg-sky-700 font-semibold transition cursor-pointer"
             onClick={handleStart}
           >
-            ▶ Start
+            ▶ Start{" "}
+            <span className="hidden lg:inline text-xs bg-sky-400 px-2 py-1 rounded">
+              space
+            </span>
           </button>
         ) : (
           <button
             className="text-white flex-1 mx-2 py-3 rounded-lg bg-red-500 hover:bg-red-600 font-semibold transition cursor-pointer"
             onClick={handleStop}
           >
-            ■ Stop
+            ■ Stop{" "}
+            <span className="hidden lg:inline text-xs bg-red-400 px-2 py-1 rounded">
+              space
+            </span>
           </button>
         )}
       </div>

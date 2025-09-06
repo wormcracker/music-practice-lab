@@ -54,6 +54,8 @@
 | ------------------------- | -------------------------- |
 | <kbd>Ctrl+K</kbd>         | Add Widget                 |
 | <kbd>N</kbd>              | Next Note (Note Generator) |
+| <kbd>T</kbd>              | Toggle Tuner               |
+| <kbd>R</kbd>              | Toggle Recording           |
 | <kbd>Space</kbd>          | Play/Pause Metronome       |
 | <kbd>+</kbd>/<kbd>-</kbd> | Adjust Metronome BPM       |
 | <kbd>Esc</kbd>            | Close Modals               |

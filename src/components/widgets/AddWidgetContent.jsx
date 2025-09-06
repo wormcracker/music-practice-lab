@@ -289,36 +289,24 @@ const AddWidgetContent = ({ onClose, setWidgets, widgets = [] }) => {
                       </kbd>{" "}
                       Add Widget
                     </div>
-                    {/* <div> */}
-                    {/*   <kbd className="px-2 py-1 bg-gray-200 dark:bg-gray-700 rounded text-gray-700 dark:text-gray-300"> */}
-                    {/*     M */}
-                    {/*   </kbd>{" "} */}
-                    {/*   Toggle Metronome */}
-                    {/* </div> */}
                     <div>
                       <kbd className="px-2 py-1 bg-gray-200 dark:bg-gray-700 rounded text-gray-700 dark:text-gray-300">
                         N
                       </kbd>{" "}
                       Next Note
                     </div>
-                    {/* <div> */}
-                    {/*   <kbd className="px-2 py-1 bg-gray-200 dark:bg-gray-700 rounded text-gray-700 dark:text-gray-300"> */}
-                    {/*     R */}
-                    {/*   </kbd>{" "} */}
-                    {/*   Start/Stop Recording */}
-                    {/* </div> */}
-                    {/* <div> */}
-                    {/*   <kbd className="px-2 py-1 bg-gray-200 dark:bg-gray-700 rounded text-gray-700 dark:text-gray-300"> */}
-                    {/*     T */}
-                    {/*   </kbd>{" "} */}
-                    {/*   Start/Stop Timer */}
-                    {/* </div> */}
-                    {/* <div> */}
-                    {/*   <kbd className="px-2 py-1 bg-gray-200 dark:bg-gray-700 rounded text-gray-700 dark:text-gray-300"> */}
-                    {/*     S */}
-                    {/*   </kbd>{" "} */}
-                    {/*   Start/Stop Stopwatch */}
-                    {/* </div> */}
+                    <div>
+                      <kbd className="px-2 py-1 bg-gray-200 dark:bg-gray-700 rounded text-gray-700 dark:text-gray-300">
+                        R
+                      </kbd>{" "}
+                      Start/Stop Recording
+                    </div>
+                    <div>
+                      <kbd className="px-2 py-1 bg-gray-200 dark:bg-gray-700 rounded text-gray-700 dark:text-gray-300">
+                        T
+                      </kbd>{" "}
+                      Start/Stop Timer
+                    </div>
                     <div>
                       <kbd className="px-2 py-1 bg-gray-200 dark:bg-gray-700 rounded text-gray-700 dark:text-gray-300">
                         Space
