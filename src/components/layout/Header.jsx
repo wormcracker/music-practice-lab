@@ -1,5 +1,6 @@
 import React from "react";
-import { Download, Upload, Plus, Github } from "lucide-react";
+import { Download, Upload, Plus, Github, Music } from "lucide-react";
+import logo from "../../../public/music-practice-lab.svg";
 
 const Header = ({ onAddWidget, onImportWidgets }) => {
   const fileInputRef = React.useRef(null);
@@ -39,7 +40,9 @@ const Header = ({ onAddWidget, onImportWidgets }) => {
       <div className="max-w-full flex items-center justify-between px-4 py-3">
         {/* Logo and Title */}
         <div className="flex items-center gap-3">
-          <span className="">🎵</span>
+          <span className="w-6 h-6">
+            <img src={logo} alt="Music Practice Lab logo" />
+          </span>
           <span className="text-2xl font-bold tracking-tight bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
             Music Practice Lab
           </span>
@@ -98,4 +101,3 @@ const Header = ({ onAddWidget, onImportWidgets }) => {
 };
 
 export default Header;
-

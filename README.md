@@ -1,6 +1,6 @@
 <div align="center">
 	<a href="https://github.com/wormcracker/music-practice-lab">
-		<img src="./public/MusicPracticeLab.png" width="256" style="border-radius:28px" alt="music-practice-lab">
+		<img src="./public/music-practice-lab.svg" width="256" style="border-radius:28px" alt="music-practice-lab">
 	</a>
 	<h3 align="center">Music Practice Lab</h3>
 </div>
