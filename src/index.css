@@ -8,6 +8,9 @@ body {
   margin: 0;
   overflow: auto;
 }
+button {
+  cursor: pointer;
+}
 
 @keyframes float-slow {
   0% {
@@ -82,3 +85,4 @@ body {
 .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background-color: rgba(75, 85, 99, 0.7);
 }
+
