@@ -92,6 +92,8 @@ const AddWidgetContent = ({ onClose, setWidgets, widgets = [] }) => {
     "Circle of Fifths",
     "Looper",
   ]);
+
+  const MAX_WIDGET_Z = 49;
   const getMaxZ = () => widgets.reduce((m, w) => Math.max(m, w.zIndex || 0), 0);
 
   const rect = () => {
@@ -151,7 +153,7 @@ const AddWidgetContent = ({ onClose, setWidgets, widgets = [] }) => {
       type: widget,
       position: pos, // computed non-overlapping position
       size: defaultSize, // Default size
-      zIndex: getMaxZ() + 1, // bring to front
+      zIndex: Math.min(getMaxZ() + 1, MAX_WIDGET_Z), // bring to front
     };
 
     setWidgets((prevWidgets) => [...prevWidgets, newWidget]);
@@ -171,7 +173,7 @@ const AddWidgetContent = ({ onClose, setWidgets, widgets = [] }) => {
   }, [onClose]);
   return (
     <Modal onClose={onClose} isOpen={true} size="lg">
-      <div className="max-w-4xl mx-auto z-[9999]">
+      <div className="max-w-4xl mx-auto z-50">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
