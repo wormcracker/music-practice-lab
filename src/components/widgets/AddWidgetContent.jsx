@@ -93,7 +93,7 @@ const AddWidgetContent = ({ onClose, setWidgets, widgets = [] }) => {
     "Looper",
   ]);
 
-  const MAX_WIDGET_Z = 49;
+  const MAX_WIDGET_Z = 9998;
   const getMaxZ = () => widgets.reduce((m, w) => Math.max(m, w.zIndex || 0), 0);
 
   const rect = () => {
@@ -172,8 +172,8 @@ const AddWidgetContent = ({ onClose, setWidgets, widgets = [] }) => {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [onClose]);
   return (
-    <Modal onClose={onClose} isOpen={true} size="lg">
-      <div className="max-w-4xl mx-auto z-50">
+    <Modal onClose={onClose} isOpen={true} size="lg" zindex="9999">
+      <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
