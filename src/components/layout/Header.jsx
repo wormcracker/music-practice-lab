@@ -1,6 +1,6 @@
 import React from "react";
 import { Download, Upload, Plus, Github, Music } from "lucide-react";
-import logo from "../../../public/music-practice-lab.svg";
+import logo from "/music-practice-lab.svg?url";
 
 const Header = ({ onAddWidget, onImportWidgets }) => {
   const fileInputRef = React.useRef(null);

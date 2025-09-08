@@ -16,10 +16,12 @@ const Metronome = ({
   widgetId,
   onUpdateWidgetProps,
   bpm: bpmProp,
+  vol: volProp,
   beatsPerMeasure: bpmMeasureProp,
   accentFirstBeat: accentProp,
 }) => {
   const [bpm, setBpm] = useState(bpmProp ?? 120);
+  const [vol, setVol] = useState(volProp ?? 50);
   const [isPlaying, setIsPlaying] = useState(false);
   const [beatsPerMeasure, setBeatsPerMeasure] = useState(bpmMeasureProp ?? 4);
   const [currentBeat, setCurrentBeat] = useState(0);
@@ -49,7 +51,8 @@ const Metronome = ({
       gain.gain.value = 0.12;
     } else {
       osc.frequency.value = isAccent ? C5_FREQ : B4_FREQ;
-      gain.gain.value = isAccent ? 0.4 : 0.3;
+      const baseVolume = vol / 100;
+      gain.gain.value = isAccent ? baseVolume : 0.8 * baseVolume;
     }
     osc.connect(gain);
     gain.connect(ctx.destination);
@@ -119,6 +122,18 @@ const Metronome = ({
     }
   };
 
+  const handleChangeVolume = (value) => {
+    setVol(value);
+
+    if (isPlaying) {
+      clearInterval(intervalRef.current);
+      beatStateRef.current = { beat: 0, sub: 0 };
+      setCurrentBeat(0);
+      setCurrentSubdivision(0);
+      startInterval();
+    }
+  };
+
   // When subdivision, beatsPerMeasure, or accent changes, reset everything and restart if playing
   useEffect(() => {
     if (!isPlaying) return;
@@ -145,13 +160,14 @@ const Metronome = ({
     if (typeof onUpdateWidgetProps === "function") {
       onUpdateWidgetProps({
         bpm,
+        vol,
         beatsPerMeasure,
         accentFirstBeat,
         subdivision,
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bpm, beatsPerMeasure, accentFirstBeat, subdivision]);
+  }, [bpm, vol, beatsPerMeasure, accentFirstBeat, subdivision]);
 
   useEffect(() => {
     const onKey = (e) => {
@@ -291,6 +307,19 @@ const Metronome = ({
           value={bpm}
           className="w-full h-2 rounded-lg bg-gray-200 dark:bg-gray-700 appearance-none cursor-pointer accent-sky-400"
           onChange={(e) => handleChangeBpm(e.target.value)}
+        />
+      </div>
+
+      {/* BPM Slider */}
+      <div className="mb-6">
+        <input
+          type="range"
+          min="0"
+          max="100"
+          value={vol}
+          className="absolute w-[100px] right-0 top-[200px] h-2 rounded-lg bg-gray-200 dark:bg-gray-700 rotate-270 appearance-none cursor-pointer accent-sky-400"
+          title="Volume"
+          onChange={(e) => handleChangeVolume(e.target.value)}
         />
       </div>
 
