@@ -224,7 +224,9 @@ const AddWidgetContent = ({ onClose, setWidgets, widgets = [] }) => {
                 disabled={disabled}
                 title={disabled ? `Only one ${widget} allowed` : undefined}
               >
-                <div className="flex items-center gap-3">
+                <div
+                  className={`${disabled ? "cursor-not-allowed" : null} flex items-center gap-3`}
+                >
                   <div
                     className={`p-2 rounded-lg ${disabled ? "bg-gray-100 dark:bg-gray-800" : "bg-blue-100 dark:bg-blue-900/30"}`}
                   >

@@ -45,13 +45,13 @@ const Metronome = ({
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = "sine";
+    const baseVolume = vol / 100;
     // Subdivision clicks are softer and lower
     if (isSubdivision) {
       osc.frequency.value = 370; // F#4
-      gain.gain.value = 0.12;
+      gain.gain.value = 0.4 * baseVolume;
     } else {
       osc.frequency.value = isAccent ? C5_FREQ : B4_FREQ;
-      const baseVolume = vol / 100;
       gain.gain.value = isAccent ? baseVolume : 0.8 * baseVolume;
     }
     osc.connect(gain);
