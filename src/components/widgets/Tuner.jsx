@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from "react";
-import { Mic, MicOff, BookAudio as TuningFork } from "lucide-react";
+import { Mic, MicOff, Music } from "lucide-react";
 
 // Note names for chromatic scale
 const NOTE_NAMES = [
@@ -30,54 +30,99 @@ function freqToNote(freq) {
   return { note, octave, cents, freq: freq.toFixed(2) };
 }
 
-// Improved autocorrelation with parabolic interpolation and frequency limits
+// Fixed autocorrelation algorithm
 function autoCorrelate(buf, sampleRate) {
-  let SIZE = buf.length;
+  const SIZE = buf.length;
+
+  // Calculate RMS to check if signal is strong enough
   let rms = 0;
   for (let i = 0; i < SIZE; i++) {
-    let val = buf[i];
-    rms += val * val;
+    rms += buf[i] * buf[i];
   }
   rms = Math.sqrt(rms / SIZE);
-  if (rms < 0.01) return null; // Too quiet
+  if (rms < 0.005) return null; // Adjusted threshold
 
   // Remove DC offset
-  let mean = buf.reduce((a, b) => a + b, 0) / SIZE;
-  for (let i = 0; i < SIZE; i++) buf[i] -= mean;
+  let mean = 0;
+  for (let i = 0; i < SIZE; i++) {
+    mean += buf[i];
+  }
+  mean /= SIZE;
 
-  let maxSamples = Math.floor(SIZE / 2);
-  let bestOffset = -1;
+  // Copy buffer and remove DC offset
+  const normalizedBuf = new Float32Array(SIZE);
+  for (let i = 0; i < SIZE; i++) {
+    normalizedBuf[i] = buf[i] - mean;
+  }
+
+  // Define frequency range for musical instruments
+  const minFreq = 50; // Hz (E1 is ~41Hz, but we'll be conservative)
+  const maxFreq = 2000; // Hz (covers most instruments)
+  const maxLag = Math.floor(sampleRate / minFreq);
+  const minLag = Math.floor(sampleRate / maxFreq);
+
   let bestCorr = 0;
-  let correlations = new Array(maxSamples);
+  let bestLag = -1;
 
-  let minFreq = 40; // Hz (lowered for bass)
-  let maxFreq = 1200; // Hz
-  let minLag = Math.floor(sampleRate / maxFreq);
-  let maxLag = Math.floor(sampleRate / minFreq);
-
-  for (let lag = minLag; lag <= maxLag; lag++) {
+  // Autocorrelation with normalized values
+  for (let lag = minLag; lag < maxLag && lag < SIZE / 2; lag++) {
     let corr = 0;
-    for (let i = 0; i < maxSamples; i++) {
-      corr += buf[i] * buf[i + lag];
+    let energy = 0;
+
+    for (let i = 0; i < SIZE - lag; i++) {
+      corr += normalizedBuf[i] * normalizedBuf[i + lag];
+      energy += normalizedBuf[i] * normalizedBuf[i];
     }
-    correlations[lag] = corr;
+
+    // Normalize correlation
+    if (energy > 0) {
+      corr = corr / Math.sqrt(energy);
+    }
+
     if (corr > bestCorr) {
       bestCorr = corr;
-      bestOffset = lag;
+      bestLag = lag;
     }
   }
 
-  // Parabolic interpolation for better accuracy
-  if (bestOffset > minLag && bestOffset < maxLag) {
-    let y0 = correlations[bestOffset - 1];
-    let y1 = correlations[bestOffset];
-    let y2 = correlations[bestOffset + 1];
-    let shift = (y2 - y0) / (2 * (2 * y1 - y2 - y0));
-    bestOffset = bestOffset + shift;
+  // Require minimum correlation quality
+  if (bestCorr < 0.3 || bestLag === -1) return null;
+
+  // Parabolic interpolation for sub-sample accuracy
+  if (bestLag > minLag && bestLag < maxLag - 1) {
+    // Recalculate correlations around best lag for interpolation
+    const correlations = [];
+    for (let lag = bestLag - 1; lag <= bestLag + 1; lag++) {
+      let corr = 0;
+      let energy = 0;
+      for (let i = 0; i < SIZE - lag; i++) {
+        corr += normalizedBuf[i] * normalizedBuf[i + lag];
+        energy += normalizedBuf[i] * normalizedBuf[i];
+      }
+      if (energy > 0) {
+        corr = corr / Math.sqrt(energy);
+      }
+      correlations.push(corr);
+    }
+
+    const y1 = correlations[0]; // lag - 1
+    const y2 = correlations[1]; // lag
+    const y3 = correlations[2]; // lag + 1
+
+    // Parabolic interpolation
+    if (2 * y2 - y1 - y3 !== 0) {
+      const a = (y1 - 2 * y2 + y3) / 2;
+      const b = (y3 - y1) / 2;
+      const shift = -b / (2 * a);
+      bestLag = bestLag + shift;
+    }
   }
 
-  let freq = sampleRate / bestOffset;
+  const freq = sampleRate / bestLag;
+
+  // Validate frequency is in reasonable range
   if (freq < minFreq || freq > maxFreq) return null;
+
   return freq;
 }
 
@@ -99,12 +144,13 @@ const Tuner = ({ showVisualizer = false, onUpdateWidgetProps }) => {
   const [visualizerData, setVisualizerData] = useState(new Array(64).fill(0));
   const [localShowVisualizer, setLocalShowVisualizer] =
     useState(showVisualizer);
-  const [smoothedFreq, setSmoothedFreq] = useState(0);
+
   const audioCtxRef = useRef(null);
   const analyserRef = useRef(null);
   const rafRef = useRef(null);
   const streamRef = useRef(null);
   const fadeTimeoutRef = useRef(null);
+  const frequencyHistoryRef = useRef([]);
 
   // Initialize from props
   useEffect(() => {
@@ -115,15 +161,33 @@ const Tuner = ({ showVisualizer = false, onUpdateWidgetProps }) => {
   const startMic = async () => {
     setError("");
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false,
+          sampleRate: 44100,
+        },
+      });
       streamRef.current = stream;
       audioCtxRef.current = new (window.AudioContext ||
         window.webkitAudioContext)();
+
+      // Ensure proper sample rate
+      if (audioCtxRef.current.sampleRate < 44100) {
+        console.warn(
+          "Low sample rate detected, tuning accuracy may be reduced",
+        );
+      }
+
       const source = audioCtxRef.current.createMediaStreamSource(stream);
       analyserRef.current = audioCtxRef.current.createAnalyser();
-      analyserRef.current.fftSize = 16384; // Larger for better low note detection
+      analyserRef.current.fftSize = 8192; // Good balance of resolution and performance
+      analyserRef.current.smoothingTimeConstant = 0;
       source.connect(analyserRef.current);
+
       setIsListening(true);
+      frequencyHistoryRef.current = [];
       listen();
     } catch (e) {
       setError("Microphone access denied or unavailable.");
@@ -141,11 +205,40 @@ const Tuner = ({ showVisualizer = false, onUpdateWidgetProps }) => {
     }
     setDetected({ note: "-", octave: "-", cents: 0, freq: 0 });
     setLastDetected({ note: "-", octave: "-", cents: 0, freq: 0 });
-    setSmoothedFreq(0);
+    frequencyHistoryRef.current = [];
     if (fadeTimeoutRef.current) {
       clearTimeout(fadeTimeoutRef.current);
       fadeTimeoutRef.current = null;
     }
+  };
+
+  // Frequency smoothing with history
+  const smoothFrequency = (newFreq) => {
+    if (!newFreq) return null;
+
+    const history = frequencyHistoryRef.current;
+    history.push(newFreq);
+
+    // Keep last 5 readings for smoothing
+    if (history.length > 5) {
+      history.shift();
+    }
+
+    // If we have enough samples, use median for stability
+    if (history.length >= 3) {
+      const sorted = [...history].sort((a, b) => a - b);
+      const median = sorted[Math.floor(sorted.length / 2)];
+
+      // Only use median if it's close to recent values (within 10 cents)
+      const recent = history[history.length - 1];
+      const centsDiff = Math.abs(1200 * Math.log2(median / recent));
+
+      if (centsDiff < 20) {
+        return median;
+      }
+    }
+
+    return newFreq;
   };
 
   // Listen and detect pitch
@@ -158,48 +251,33 @@ const Tuner = ({ showVisualizer = false, onUpdateWidgetProps }) => {
     if (localShowVisualizer) {
       const freqData = new Uint8Array(analyser.frequencyBinCount);
       analyser.getByteFrequencyData(freqData);
-      setVisualizerData(Array.from(freqData.slice(0, 64))); // First 64 frequency bins
+      setVisualizerData(Array.from(freqData.slice(0, 64)));
     }
 
-    const freq = autoCorrelate(buf, audioCtxRef.current.sampleRate);
+    const rawFreq = autoCorrelate(buf, audioCtxRef.current.sampleRate);
+    const smoothedFreq = smoothFrequency(rawFreq);
 
-    // Octave correction for guitar/bass
-    let correctedFreq = freq;
-    if (freq) {
-      // If above A2, check for subharmonics (divide by 2 or 3)
-      if (freq > 110) {
-        if (freq / 2 > 40 && freq / 2 < 120) {
-          correctedFreq = freq / 2;
-        } else if (freq / 3 > 40 && freq / 3 < 120) {
-          correctedFreq = freq / 3;
-        }
-      }
-    }
-
-    // Smoothing
-    const SMOOTHING = 0.2; // 0 = no smoothing, 1 = infinite smoothing
-    let displayFreq = correctedFreq;
-    if (correctedFreq) {
-      displayFreq = smoothedFreq
-        ? SMOOTHING * smoothedFreq + (1 - SMOOTHING) * correctedFreq
-        : correctedFreq;
-      setSmoothedFreq(displayFreq);
-      const noteObj = freqToNote(displayFreq);
+    if (smoothedFreq) {
+      const noteObj = freqToNote(smoothedFreq);
       setDetected(noteObj);
       setLastDetected(noteObj);
+
       if (fadeTimeoutRef.current) {
         clearTimeout(fadeTimeoutRef.current);
         fadeTimeoutRef.current = null;
       }
     } else {
       setDetected({ note: "-", octave: "-", cents: 0, freq: 0 });
+
       if (!fadeTimeoutRef.current) {
         fadeTimeoutRef.current = setTimeout(() => {
           setLastDetected({ note: "-", octave: "-", cents: 0, freq: 0 });
+          frequencyHistoryRef.current = [];
           fadeTimeoutRef.current = null;
-        }, 2000); // 2 seconds grace period
+        }, 1000);
       }
     }
+
     rafRef.current = requestAnimationFrame(listen);
   };
 
@@ -207,18 +285,24 @@ const Tuner = ({ showVisualizer = false, onUpdateWidgetProps }) => {
   const playTone = (freq) => {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     const osc = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+
     osc.type = "sine";
     osc.frequency.value = freq;
-    osc.connect(ctx.destination);
+    gainNode.gain.value = 0.1; // Reduce volume
+
+    osc.connect(gainNode);
+    gainNode.connect(ctx.destination);
+
     osc.start();
-    osc.stop(ctx.currentTime + 1.2);
+    osc.stop(ctx.currentTime + 0.8);
     osc.onended = () => ctx.close();
   };
 
-  // Chromatic notes for reference
+  // Chromatic notes for reference (4th octave)
   const chromatic = Array.from({ length: 12 }, (_, i) => {
     const note = NOTE_NAMES[i];
-    const freq = 440 * Math.pow(2, (i - 9) / 12); // A4=440, C=0
+    const freq = 440 * Math.pow(2, (i - 9) / 12); // A4=440, relative to C
     return { note, freq: freq.toFixed(2) };
   });
 
@@ -227,11 +311,10 @@ const Tuner = ({ showVisualizer = false, onUpdateWidgetProps }) => {
     return () => {
       stopMic();
     };
-    // eslint-disable-next-line
   }, []);
 
-  // keyboard shortcut: 't' toggling tuner
-  React.useEffect(() => {
+  // Keyboard shortcut: 't' for toggling tuner
+  useEffect(() => {
     const onKey = (e) => {
       const tag = document.activeElement?.tagName?.toLowerCase();
       const isEditable = document.activeElement?.isContentEditable;
@@ -255,13 +338,14 @@ const Tuner = ({ showVisualizer = false, onUpdateWidgetProps }) => {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  });
+  }, [isListening]);
 
   return (
     <div className="max-w-sm p-6 rounded-xl shadow-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 flex flex-col gap-4">
       <h2 className="text-2xl font-semibold flex items-center gap-2 mb-2">
-        <TuningFork className="w-6 h-6 text-blue-500" /> Chromatic Tuner
+        <Music className="w-6 h-6 text-blue-500" /> Chromatic Tuner
       </h2>
+
       <div className="flex items-center gap-3">
         <button
           className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition ${
@@ -271,10 +355,16 @@ const Tuner = ({ showVisualizer = false, onUpdateWidgetProps }) => {
           }`}
           onClick={isListening ? stopMic : startMic}
         >
-          {isListening ? <MicOff /> : <Mic />}
-          {isListening ? "Stop" : "Use Microphone"}
+          {isListening ? (
+            <MicOff className="w-4 h-4" />
+          ) : (
+            <Mic className="w-4 h-4" />
+          )}
+          {isListening ? "Stop" : "Start Tuner"}
           <span
-            className={`hidden lg:inline text-xs bg-green-500 px-2 py-1 rounded ${isListening ? "bg-red-400" : "bg-green-400"}`}
+            className={`hidden lg:inline text-xs px-2 py-1 rounded ${
+              isListening ? "bg-red-400" : "bg-green-400"
+            }`}
           >
             t
           </span>
@@ -283,48 +373,86 @@ const Tuner = ({ showVisualizer = false, onUpdateWidgetProps }) => {
           {isListening ? "Listening..." : ""}
         </span>
       </div>
+
       {error && <div className="text-red-600 text-sm">{error}</div>}
-      <div className="flex flex-col items-center my-2">
-        <div className="text-5xl font-bold tracking-widest mb-1">
+
+      {/* Main display */}
+      <div className="flex flex-col items-center my-4">
+        <div className="text-6xl font-bold tracking-wider mb-2">
           {lastDetected.note}
-          <span className="text-2xl font-normal ml-1">
+          <span className="text-3xl font-normal ml-1">
             {lastDetected.octave}
           </span>
         </div>
-        <div className="text-lg mb-1">
+        <div className="text-lg mb-2">
           {lastDetected.freq > 0 ? `${lastDetected.freq} Hz` : "—"}
         </div>
-        <div className="text-sm">
+
+        {/* Cents indicator */}
+        <div className="text-base">
           {lastDetected.note !== "-" && (
-            <span
-              className={
-                Math.abs(lastDetected.cents) < 5
-                  ? "text-green-600"
+            <div className="flex flex-col items-center">
+              <span
+                className={`font-semibold ${
+                  Math.abs(lastDetected.cents) < 5
+                    ? "text-green-600"
+                    : lastDetected.cents < 0
+                      ? "text-blue-600"
+                      : "text-red-600"
+                }`}
+              >
+                {lastDetected.cents > 0 ? "+" : ""}
+                {lastDetected.cents} cents
+              </span>
+              <span
+                className={`text-sm ${
+                  Math.abs(lastDetected.cents) < 5
+                    ? "text-green-600"
+                    : lastDetected.cents < 0
+                      ? "text-blue-600"
+                      : "text-red-600"
+                }`}
+              >
+                {Math.abs(lastDetected.cents) < 5
+                  ? "In Tune!"
                   : lastDetected.cents < 0
-                    ? "text-blue-600"
-                    : "text-red-600"
-              }
-            >
-              {lastDetected.cents > 0 ? "+" : ""}
-              {lastDetected.cents} cents
-              {Math.abs(lastDetected.cents) < 5
-                ? " (in tune)"
-                : lastDetected.cents < 0
-                  ? " (flat)"
-                  : " (sharp)"}
-            </span>
+                    ? "Flat"
+                    : "Sharp"}
+              </span>
+
+              {/* Visual cents indicator */}
+              <div className="w-48 h-2 bg-gray-300 rounded-full mt-2 relative">
+                <div className="absolute top-1/2 left-1/2 w-0.5 h-4 bg-gray-600 -translate-x-1/2 -translate-y-1/2"></div>
+                {lastDetected.cents !== 0 && (
+                  <div
+                    className={`absolute top-0 h-2 w-2 rounded-full -translate-x-1/2 ${
+                      Math.abs(lastDetected.cents) < 5
+                        ? "bg-green-500"
+                        : lastDetected.cents < 0
+                          ? "bg-blue-500"
+                          : "bg-red-500"
+                    }`}
+                    style={{
+                      left: `${50 + (lastDetected.cents / 50) * 25}%`,
+                    }}
+                  ></div>
+                )}
+              </div>
+            </div>
           )}
         </div>
       </div>
+
+      {/* Reference tones */}
       <div className="mt-2">
-        <div className="font-semibold mb-1 text-sm">
+        <div className="font-semibold mb-2 text-sm">
           Reference Tones (A4=440Hz):
         </div>
         <div className="grid grid-cols-6 gap-2">
           {chromatic.map((n, i) => (
             <button
               key={i}
-              className="px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 hover:bg-blue-100 dark:hover:bg-blue-900 text-xs font-mono"
+              className="px-2 py-2 rounded bg-gray-100 dark:bg-gray-700 hover:bg-blue-100 dark:hover:bg-blue-900 text-xs font-mono transition-colors"
               onClick={() => playTone(Number(n.freq))}
               title={`${n.freq} Hz`}
             >
@@ -355,8 +483,8 @@ const Tuner = ({ showVisualizer = false, onUpdateWidgetProps }) => {
       )}
 
       <div className="text-xs text-gray-500 mt-2">
-        Play a note on your instrument and watch the tuner detect pitch and show
-        how sharp/flat you are.
+        Play a note on your instrument. The tuner will show the detected pitch
+        and how many cents sharp or flat you are.
       </div>
     </div>
   );
