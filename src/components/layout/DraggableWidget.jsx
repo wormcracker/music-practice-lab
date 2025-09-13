@@ -11,12 +11,23 @@ const DraggableWidget = ({
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
-  // ← Add useEffect for mouse movement
+  // unified pointer coordinate extractor
+  const getClientXY = (e) => {
+    // Pointer events always have clientX/Y, but keep a fallback for touch
+    if (e.touches?.length) {
+      return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    }
+    if (e.changedTouches?.length) {
+      return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
+    }
+    return { x: e.clientX, y: e.clientY };
+  };
+
   useEffect(() => {
-    const handlePointerMove = (e) => {
+    const handleMove = (e) => {
       if (!isDragging) return;
-      const clientX = e.clientX;
-      const clientY = e.clientY;
+      const { x: clientX, y: clientY } = getClientXY(e);
+
       let newX = clientX - dragStart.x;
       let newY = clientY - dragStart.y;
 
@@ -33,42 +44,26 @@ const DraggableWidget = ({
       });
     };
 
-    const handlePointerUp = () => setIsDragging(false);
+    const handleUp = () => setIsDragging(false);
 
     if (isDragging) {
-      window.addEventListener("pointermove", handlePointerMove);
-      window.addEventListener("pointerup", handlePointerUp);
-      // also support legacy mouse/touch
-      window.addEventListener("mousemove", handlePointerMove);
-      window.addEventListener("mouseup", handlePointerUp);
-      window.addEventListener("touchmove", handlePointerMove, {
-        passive: false,
-      });
-      window.addEventListener("touchend", handlePointerUp);
-      window.addEventListener("touchcancel", handlePointerUp);
+      window.addEventListener("pointermove", handleMove);
+      window.addEventListener("pointerup", handleUp);
     }
-
     return () => {
-      window.removeEventListener("pointermove", handlePointerMove);
-      window.removeEventListener("pointerup", handlePointerUp);
-      window.removeEventListener("mousemove", handlePointerMove);
-      window.removeEventListener("mouseup", handlePointerUp);
-      window.removeEventListener("touchmove", handlePointerMove);
-      window.removeEventListener("touchend", handlePointerUp);
-      window.removeEventListener("touchcancel", handlePointerUp);
+      window.removeEventListener("pointermove", handleMove);
+      window.removeEventListener("pointerup", handleUp);
     };
   }, [isDragging, dragStart, widget, onUpdateWidget, containerRect]);
 
   const handlePointerDown = (e) => {
-    if (onFocusWidget) {
-      onFocusWidget(widget.id);
-    }
-    // prevent scrolling on touch when dragging
-    if (e.cancelable) e.preventDefault();
+    onFocusWidget?.(widget.id);
+    if (e.cancelable) e.preventDefault(); // stop scroll on touch
+    const { x, y } = getClientXY(e);
     setIsDragging(true);
     setDragStart({
-      x: e.clientX - widget.position.x,
-      y: e.clientY - widget.position.y,
+      x: x - widget.position.x,
+      y: y - widget.position.y,
     });
   };
 
@@ -87,9 +82,7 @@ const DraggableWidget = ({
         <div
           className="drag-handle cursor-move select-none px-3 py-3 flex items-center justify-between bg-gray-50 dark:bg-gray-900/70 border-b border-gray-200 dark:border-gray-700"
           onPointerDown={handlePointerDown}
-          onMouseDown={handlePointerDown}
-          onTouchStart={handlePointerDown}
-          style={{ touchAction: "none" }}
+          style={{ touchAction: "none" }} // disable browser panning
         >
           <div className="flex items-center gap-2">
             <span className="inline-block w-2 h-2 rounded-full bg-red-400"></span>
@@ -101,7 +94,7 @@ const DraggableWidget = ({
           </div>
           <button
             className="text-gray-600 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 px-2 py-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800"
-            onClick={() => onRemoveWidget && onRemoveWidget(widget.id)}
+            onClick={() => onRemoveWidget?.(widget.id)}
             aria-label="Close widget"
           >
             ✕
